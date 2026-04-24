@@ -2,7 +2,7 @@ name: "Demo Rule"
 type: "rule"
 source: |
   type.inbound
-  and strings.icontains(subject.subject, "voicemail Received")
+  and strings.icontains(subject.subject, "av")
 
 
 

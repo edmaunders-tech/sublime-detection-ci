@@ -1,0 +1,28 @@
+name: Detection CI (Demo)
+
+on:
+  pull_request:
+    paths:
+      - "detection-rules/**/*.yml"
+
+jobs:
+  demo-ci:
+    runs-on: ubuntu-latest
+
+    env:
+      SUBLIME_BASE_URL: ${{ secrets.SUBLIME_BASE_URL }}
+      SUBLIME_API_TOKEN: ${{ secrets.SUBLIME_API_TOKEN }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install deps
+        run: pip install requests pyyaml
+
+      - name: Run CI script
+        run: python scripts/detection_ci.py

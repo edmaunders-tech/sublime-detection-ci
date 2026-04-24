@@ -1,0 +1,5 @@
+name: "Demo Rule"
+type: "rule"
+source: |
+  type.inbound
+  and strings.icontains(subject, "invoice")

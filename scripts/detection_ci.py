@@ -123,7 +123,13 @@ def main():
             print("❌ Backtest failed. Hunt results were truncated, detection may be too broad.")
             exit(1)
 
-        print("✅ Backtest passed. Detection completed successfully and results were not truncated.")
+        # Demo gate:
+        # The hunt status endpoint does not return match count.
+        # For this demo failure branch, we intentionally fail after a clean hunt
+        # to show how CI would block a detection that does not meet expected results.
+        print("⚠️ Demo gate: no match-count field returned by Hunt status endpoint.")
+        print("❌ Backtest failed. Detection did not meet expected match criteria.")
+        exit(1)
 
 
 if __name__ == "__main__":

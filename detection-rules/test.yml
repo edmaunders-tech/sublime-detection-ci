@@ -3,3 +3,4 @@ type: "rule"
 source: |
   type.inbound
   and strings.icontains(subject.subject, "fwd: New voicemail Received")
+# trigger ci

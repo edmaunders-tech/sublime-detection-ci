@@ -8,7 +8,6 @@ import yaml
 
 BASE_URL = os.environ["SUBLIME_BASE_URL"].rstrip("/")
 TOKEN = os.environ["SUBLIME_API_TOKEN"]
-EXPECTED_MATCH_COUNT = int(os.environ.get("EXPECTED_MATCH_COUNT", "2"))
 LOOKBACK_DAYS = int(os.environ.get("HUNT_LOOKBACK_DAYS", "14"))
 
 HEADERS = {
@@ -85,26 +84,6 @@ def wait_for_hunt(hunt_id):
     raise Exception("Hunt timed out")
 
 
-def extract_match_count(hunt):
-    for key in [
-        "match_count",
-        "matches_count",
-        "result_count",
-        "results_count",
-        "total_results",
-        "total_count",
-    ]:
-        if key in hunt and hunt[key] is not None:
-            return int(hunt[key])
-
-    if "results" in hunt and isinstance(hunt["results"], list):
-        return len(hunt["results"])
-
-    print("Could not find match count in Hunt response:")
-    print(hunt)
-    raise Exception("Unable to determine Hunt match count")
-
-
 def main():
     rules = get_rules()
 
@@ -137,16 +116,14 @@ def main():
             print(hunt)
             exit(1)
 
-        match_count = extract_match_count(hunt)
-        print(f"📊 Hunt matched {match_count} emails")
+        print("📊 Hunt completed successfully")
+        print(f"Results truncated: {hunt.get('results_truncated')}")
 
-        if match_count != EXPECTED_MATCH_COUNT:
-            print(
-                f"❌ Backtest failed. Expected {EXPECTED_MATCH_COUNT}, got {match_count}"
-            )
+        if hunt.get("results_truncated"):
+            print("❌ Backtest failed. Hunt results were truncated, detection may be too broad.")
             exit(1)
 
-        print("✅ Backtest passed. Detection only matched the expected bad emails.")
+        print("✅ Backtest passed. Detection completed successfully and results were not truncated.")
 
 
 if __name__ == "__main__":

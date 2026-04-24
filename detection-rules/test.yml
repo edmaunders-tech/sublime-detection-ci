@@ -2,7 +2,8 @@ name: "Demo Rule"
 type: "rule"
 source: |
   type.inbound
-  and strings.icontains(subject.subject, "av")
+  and strings.icontains(subject.subject, "v")
 
 
 
+# PR trigger

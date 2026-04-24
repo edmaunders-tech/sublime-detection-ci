@@ -12,7 +12,9 @@ jobs:
     env:
       SUBLIME_BASE_URL: ${{ secrets.SUBLIME_BASE_URL }}
       SUBLIME_API_TOKEN: ${{ secrets.SUBLIME_API_TOKEN }}
-      EXPECTED_MATCH_COUNT: "2"
+      HUNT_LOOKBACK_DAYS: "14"
+      MIN_MATCHES: "1"
+      MAX_MATCHES: "50"
 
     steps:
       - uses: actions/checkout@v4

@@ -2,5 +2,4 @@ name: "Demo Rule"
 type: "rule"
 source: |
   type.inbound
-  and strings.icontains(subject.subject, "invoice")
-  and strings.icontains(subject.subject, "urgent")
+  and strings.icontains(subject.subject, "Fwd: New voicemail Received")

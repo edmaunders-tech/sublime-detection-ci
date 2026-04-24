@@ -8,7 +8,10 @@ import yaml
 
 BASE_URL = os.environ["SUBLIME_BASE_URL"].rstrip("/")
 TOKEN = os.environ["SUBLIME_API_TOKEN"]
+
 LOOKBACK_DAYS = int(os.environ.get("HUNT_LOOKBACK_DAYS", "14"))
+MIN_MATCHES = int(os.environ.get("MIN_MATCHES", "1"))
+MAX_MATCHES = int(os.environ.get("MAX_MATCHES", "50"))
 
 HEADERS = {
     "Authorization": f"Bearer {TOKEN}",
@@ -84,6 +87,69 @@ def wait_for_hunt(hunt_id):
     raise Exception("Hunt timed out")
 
 
+def get_hunt_results(hunt_id):
+    r = requests.get(
+        f"{BASE_URL}/v0/hunt-jobs/{hunt_id}/results",
+        headers=HEADERS,
+        params={"limit": 50, "offset": 0},
+        timeout=60,
+    )
+
+    if not r.ok:
+        raise Exception(r.text)
+
+    body = r.json()
+
+    if isinstance(body, list):
+        return body
+
+    for key in ["results", "data", "items", "message_groups"]:
+        if key in body and isinstance(body[key], list):
+            return body[key]
+
+    print("Could not find results list in response:")
+    print(body)
+    return []
+
+
+def pick_field(obj, possible_keys):
+    for key in possible_keys:
+        value = obj.get(key)
+        if value:
+            return value
+    return "unknown"
+
+
+def print_result_examples(results):
+    print("\nMatched message examples:")
+
+    for index, result in enumerate(results[:10], start=1):
+        subject = pick_field(
+            result,
+            ["subject", "message_subject", "summary", "name"],
+        )
+
+        sender = pick_field(
+            result,
+            ["sender", "from", "from_address", "sender_address"],
+        )
+
+        mailbox = pick_field(
+            result,
+            ["mailbox", "mailbox_email_address", "recipient", "recipient_address"],
+        )
+
+        group_id = pick_field(
+            result,
+            ["id", "message_group_id", "canonical_id"],
+        )
+
+        print(f"{index}. Subject: {subject}")
+        print(f"   Sender:  {sender}")
+        print(f"   Mailbox: {mailbox}")
+        print(f"   Group:   {group_id}")
+
+
 def main():
     rules = get_rules()
 
@@ -120,10 +186,27 @@ def main():
         print(f"Results truncated: {hunt.get('results_truncated')}")
 
         if hunt.get("results_truncated"):
-            print("❌ Backtest failed. Hunt results were truncated, detection may be too broad.")
+            print("❌ Backtest failed. Results were truncated, detection may be too broad.")
             exit(1)
 
-        print("✅ Backtest passed. Detection completed successfully and results were not truncated.")
+        results = get_hunt_results(hunt_id)
+        match_count = len(results)
+
+        print(f"\n📊 Matched messages: {match_count}")
+        print(f"Threshold: {MIN_MATCHES} to {MAX_MATCHES}")
+
+        if results:
+            print_result_examples(results)
+
+        if match_count < MIN_MATCHES:
+            print("❌ Backtest failed. Detection did not match enough messages.")
+            exit(1)
+
+        if match_count > MAX_MATCHES:
+            print("❌ Backtest failed. Detection matched too many messages and may be noisy.")
+            exit(1)
+
+        print("✅ Backtest passed. Detection matched within the allowed threshold.")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,15 @@
+type.inbound
+and any(attachments,
+  regex.icontains(.file_name,
+    '(invoice|payment|remittance)'
+  )
+)
+and any(attachments,
+  any(file.explode(.),
+    any(.scan.strings.strings,
+      strings.icontains(.,
+        'ACME-PAYMENT-VALIDATION-CODE'
+      )
+    )
+  )
+)

@@ -1,5 +1,6 @@
 name: "Encrypted Invoice Archive With Validation Marker"
 type: "rule"
+severity: "high"
 source: |
   type.inbound
   and any(attachments,

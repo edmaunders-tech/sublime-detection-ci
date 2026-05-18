@@ -1,4 +1,4 @@
-name: "barclays brands"
+name: "barclays logo"
 type: "rule"
 source: |
   type.inbound

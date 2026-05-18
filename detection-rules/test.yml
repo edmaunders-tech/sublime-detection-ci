@@ -4,6 +4,3 @@ source: |
   type.inbound
   and strings.icontains(subject.subject, "v")
 
-
-
-# PR trigger

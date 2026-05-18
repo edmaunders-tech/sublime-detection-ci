@@ -1,5 +1,6 @@
 name: "barclays logo"
 type: "rule"
+severity: "high"
 source: |
   type.inbound
 

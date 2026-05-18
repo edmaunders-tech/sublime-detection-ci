@@ -1,0 +1,18 @@
+name: "barclays brands"
+type: "rule"
+source: |
+type.inbound
+
+and any(
+  ml.logo_detect(file.message_screenshot()).brands,
+  .name == "Barclays"
+  and .confidence in ("medium", "high")
+)
+
+and sender.email.domain.root_domain != "barclays.co.uk"
+
+and any(body.links,
+  .href_url.domain.root_domain not in (
+    "barclays.co.uk"
+  )
+)

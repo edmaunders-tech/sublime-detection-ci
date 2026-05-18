@@ -1,4 +1,4 @@
-name: "barclays logo"
+name: "barclaysLogo"
 type: "rule"
 severity: "high"
 source: |

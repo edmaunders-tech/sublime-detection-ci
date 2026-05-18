@@ -29,3 +29,12 @@ jobs:
 
       - name: Run CI script
         run: python scripts/detection_ci.py
+
+  admin-review:
+    needs: demo-ci
+    runs-on: ubuntu-latest
+    environment: review        # 👈 this is what triggers the approval gate
+
+    steps:
+      - name: Approved
+        run: echo "✅ Admin reviewed and approved the detection results."

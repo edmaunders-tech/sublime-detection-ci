@@ -120,34 +120,58 @@ def pick_field(obj, possible_keys):
     return "unknown"
 
 
-def print_result_examples(results):
-    print("\nMatched message examples:")
+def write_summary(rule_name, match_count, results, hard_fail=False, fail_reason=None):
+    summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
+    if not summary_path:
+        return
 
-    for index, result in enumerate(results[:10], start=1):
-        subject = pick_field(
-            result,
-            ["subject", "message_subject", "summary", "name"],
-        )
+    with open(summary_path, "a") as f:
 
-        sender = pick_field(
-            result,
-            ["sender", "from", "from_address", "sender_address"],
-        )
+        if hard_fail:
+            f.write(f"## ❌ {rule_name}\n")
+            f.write(f"**Hard failure:** {fail_reason}\n\n")
+            return
 
-        mailbox = pick_field(
-            result,
-            ["mailbox", "mailbox_email_address", "recipient", "recipient_address"],
-        )
+        # Informational warnings for admin to consider
+        warnings = []
+        if match_count < MIN_MATCHES:
+            warnings.append(f"⚠️ Low match count — only {match_count} matched (min threshold: {MIN_MATCHES}). Possible missed detections.")
+        if match_count > MAX_MATCHES:
+            warnings.append(f"⚠️ High match count — {match_count} matched (max threshold: {MAX_MATCHES}). Possible noise/FPs.")
 
-        group_id = pick_field(
-            result,
-            ["id", "message_group_id", "canonical_id"],
-        )
+        f.write(f"## 🔍 {rule_name}\n")
+        f.write(f"**Matches found:** {match_count} | **Lookback:** {LOOKBACK_DAYS} days | **Threshold:** {MIN_MATCHES}–{MAX_MATCHES}\n\n")
 
-        print(f"{index}. Subject: {subject}")
-        print(f"   Sender:  {sender}")
-        print(f"   Mailbox: {mailbox}")
-        print(f"   Group:   {group_id}")
+        if warnings:
+            for w in warnings:
+                f.write(f"> {w}\n")
+            f.write("\n")
+        else:
+            f.write("> ✅ Match count within expected threshold.\n\n")
+
+        if results:
+            f.write("### Matched Messages — please review for false positives before approving\n\n")
+            f.write("| # | Subject | Sender | Mailbox | Group ID |\n")
+            f.write("|---|---------|--------|---------|----------|\n")
+
+            for i, result in enumerate(results[:50], start=1):
+                subject = pick_field(result, ["subject", "message_subject", "summary", "name"])
+                sender = pick_field(result, ["sender", "from", "from_address", "sender_address"])
+                mailbox = pick_field(result, ["mailbox", "mailbox_email_address", "recipient", "recipient_address"])
+                group_id = pick_field(result, ["id", "message_group_id", "canonical_id"])
+
+                # truncate long subjects
+                if len(subject) > 60:
+                    subject = subject[:57] + "..."
+
+                f.write(f"| {i} | {subject} | {sender} | {mailbox} | {group_id} |\n")
+
+            f.write("\n")
+        else:
+            f.write("> ℹ️ No messages matched.\n\n")
+
+        f.write("---\n")
+        f.write("👆 **Admin: review the matches above then approve or reject the `review` environment in the next job.**\n")
 
 
 def main():
@@ -168,6 +192,7 @@ def main():
         if not ok:
             print("❌ Rule validation failed")
             print(validation_response)
+            write_summary(rule.get("name", str(path)), 0, [], hard_fail=True, fail_reason=f"Validation failed: {validation_response}")
             exit(1)
 
         print("✅ Rule validation passed")
@@ -179,14 +204,14 @@ def main():
 
         if hunt.get("status") != "COMPLETED":
             print("❌ Hunt did not complete successfully")
-            print(hunt)
+            write_summary(rule.get("name", str(path)), 0, [], hard_fail=True, fail_reason=f"Hunt status: {hunt.get('status')}")
             exit(1)
 
-        print("📊 Hunt completed successfully")
-        print(f"Results truncated: {hunt.get('results_truncated')}")
+        print("✅ Hunt completed")
 
         if hunt.get("results_truncated"):
-            print("❌ Backtest failed. Results were truncated, detection may be too broad.")
+            print("❌ Results truncated — rule may be too broad")
+            write_summary(rule.get("name", str(path)), 0, [], hard_fail=True, fail_reason="Results truncated — detection is too broad.")
             exit(1)
 
         results = get_hunt_results(hunt_id)
@@ -195,18 +220,23 @@ def main():
         print(f"\n📊 Matched messages: {match_count}")
         print(f"Threshold: {MIN_MATCHES} to {MAX_MATCHES}")
 
+        # Print to log as before
         if results:
-            print_result_examples(results)
+            print("\nMatched message examples:")
+            for i, result in enumerate(results[:10], start=1):
+                subject = pick_field(result, ["subject", "message_subject", "summary", "name"])
+                sender = pick_field(result, ["sender", "from", "from_address", "sender_address"])
+                mailbox = pick_field(result, ["mailbox", "mailbox_email_address", "recipient", "recipient_address"])
+                group_id = pick_field(result, ["id", "message_group_id", "canonical_id"])
+                print(f"{i}. Subject: {subject}")
+                print(f"   Sender:  {sender}")
+                print(f"   Mailbox: {mailbox}")
+                print(f"   Group:   {group_id}")
 
-        if match_count < MIN_MATCHES:
-            print("❌ Backtest failed. Detection did not match enough messages.")
-            exit(1)
+        # Write summary for admin review — no hard fail on count anymore
+        write_summary(rule["name"], match_count, results)
 
-        if match_count > MAX_MATCHES:
-            print("❌ Backtest failed. Detection matched too many messages and may be noisy.")
-            exit(1)
-
-        print("✅ Backtest passed. Detection matched within the allowed threshold.")
+        print("\n⏸️  Waiting for admin approval in the next job...")
 
 
 if __name__ == "__main__":

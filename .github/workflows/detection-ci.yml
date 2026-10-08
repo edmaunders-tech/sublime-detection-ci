@@ -4,6 +4,14 @@ on:
   pull_request:
     paths:
       - "detection-rules/**/*.yml"
+      - "detection-rules/**/*.yaml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: detection-ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   demo-ci:
